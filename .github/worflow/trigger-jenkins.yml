@@ -1,0 +1,13 @@
+name: Trigger Jenkins
+
+on:
+  push:
+    branches: main
+
+jobs:
+  trigger-jenkins:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Jenkins build
+        run: |
+          curl -X POST http://ip10-0-49-5-d34gvfntq0k1c7corn30-8080.direct.lab-boris.fr/job/serverless-demo/build --user "test:11d2d339af459a5f0d5909dadfbdad7af1" 
