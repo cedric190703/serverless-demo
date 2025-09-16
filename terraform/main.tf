@@ -15,7 +15,6 @@ provider "aws" {
   }
 }
 
-# IAM Role for Lambda
 resource "aws_iam_role" "lambda_exec" {
   name = "lambda_exec_role"
   assume_role_policy = jsonencode({
@@ -30,19 +29,6 @@ resource "aws_iam_role" "lambda_exec" {
   })
 }
 
-# DynamoDB table
-resource "aws_dynamodb_table" "contacts" {
-  name         = "contacts"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "id"
-
-  attribute {
-    name = "id"
-    type = "S"
-  }
-}
-
-# Lambda function
 resource "aws_lambda_function" "api" {
   function_name    = "hello-api"
   handler          = "handler.handler"
@@ -54,19 +40,20 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      TABLE_NAME   = aws_dynamodb_table.contacts.name
-      ENDPOINT_URL = "http://ip10-0-49-4-d34gvfntq0k1c7corn30-4566.direct.lab-boris.fr"
+      TABLE_NAME = data.aws_dynamodb_table.contacts.name
     }
   }
 }
 
-# API Gateway
+data "aws_dynamodb_table" "contacts" {
+  name = "contacts"
+}
+
 resource "aws_api_gateway_rest_api" "api" {
   name        = "hello-api"
   description = "API REST simulée"
 }
 
-# Resources
 resource "aws_api_gateway_resource" "hello" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   parent_id   = aws_api_gateway_rest_api.api.root_resource_id
@@ -79,7 +66,6 @@ resource "aws_api_gateway_resource" "contact" {
   path_part   = "contact"
 }
 
-# Methods
 resource "aws_api_gateway_method" "hello" {
   rest_api_id   = aws_api_gateway_rest_api.api.id
   resource_id   = aws_api_gateway_resource.hello.id
@@ -94,7 +80,6 @@ resource "aws_api_gateway_method" "contact" {
   authorization = "NONE"
 }
 
-# Integrations
 resource "aws_api_gateway_integration" "hello" {
   rest_api_id             = aws_api_gateway_rest_api.api.id
   resource_id             = aws_api_gateway_resource.hello.id
@@ -113,7 +98,6 @@ resource "aws_api_gateway_integration" "contact" {
   uri                     = aws_lambda_function.api.invoke_arn
 }
 
-# Deployment
 resource "aws_api_gateway_deployment" "deployment" {
   rest_api_id = aws_api_gateway_rest_api.api.id
 
@@ -148,7 +132,6 @@ resource "aws_api_gateway_stage" "stage" {
   }
 }
 
-# Lambda permissions
 resource "aws_lambda_permission" "allow_apigw_hello" {
   statement_id  = "AllowExecutionFromAPIGatewayHello"
   action        = "lambda:InvokeFunction"
@@ -163,9 +146,4 @@ resource "aws_lambda_permission" "allow_apigw_contact" {
   function_name = aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*/contact"
-}
-
-# Outputs
-output "api_invoke_url" {
-  value = "http://ip10-0-49-4-d34gvfntq0k1c7corn30-4566.direct.lab-boris.fr/restapis/${aws_api_gateway_rest_api.api.id}/${aws_api_gateway_stage.stage.stage_name}/_user_request_"
 }
